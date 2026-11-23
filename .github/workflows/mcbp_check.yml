@@ -1,0 +1,54 @@
+name: MCBP PIN Check Loop
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_steps:
+        description: "Number of PINs per run"
+        required: false
+        default: "25000"
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  run-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Run PIN check batch
+        env:
+          START_PIN: "0"
+          END_PIN: "999999"
+          MAX_STEPS: ${{ github.event.inputs.max_steps || '25000' }}
+        run: python mcbp_runner.py
+
+      - name: Commit progress and results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if ! git diff --staged --quiet; then
+            git commit -m "Update PIN progress [skip ci]" || true
+            git push
+          fi
+
+      - name: Trigger next batch if needed
+        if: success()
+        run: |
+          if [ -f progress/more_needed.txt ] && [ "$(cat progress/more_needed.txt)" = "1" ]; then
+            gh workflow run mcbp_check.yml -f max_steps="${{ github.event.inputs.max_steps || '25000' }}"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

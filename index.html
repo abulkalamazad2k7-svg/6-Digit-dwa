@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MCBP 6-Digit Live Serial Tracker</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --success: #22c55e;
+      --warn: #f59e0b;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body {
+      margin: 0;
+      padding: 20px;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      width: 100%;
+      max-width: 680px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 20px;
+      color: var(--accent);
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 18px;
+      word-break: break-all;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .box {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .val {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .pin-val { color: var(--warn); letter-spacing: 1px; }
+    .progress-wrap {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      height: 16px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #0284c7, #22c55e);
+      transition: width 0.4s ease;
+    }
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+    .found-box {
+      background: #052e16;
+      border: 1px solid #16a34a;
+      border-radius: 10px;
+      padding: 14px;
+      display: none;
+      margin-bottom: 16px;
+      white-space: pre-wrap;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    button, a.btn {
+      background: #0284c7;
+      color: #fff;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    button.secondary, a.btn.secondary {
+      background: #334155;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>MCBP 6-Digit লাইভ সিরিয়াল ট্র্যাকার</h1>
+    <div class="sub">Repo: abulkalamazad2k7-svg/6-Digit-dwa</div>
+
+    <div class="grid">
+      <div class="box">
+        <div class="label">সর্বশেষ চেক হওয়া সিরিয়াল</div>
+        <div class="val pin-val" id="lastPin">লোড হচ্ছে...</div>
+      </div>
+      <div class="box">
+        <div class="label">পরবর্তী সিরিয়াল</div>
+        <div class="val" id="nextPin">---</div>
+      </div>
+      <div class="box">
+        <div class="label">মোট চেক হয়েছে</div>
+        <div class="val" id="checkedCount">0</div>
+      </div>
+      <div class="box">
+        <div class="label">অগ্রগতি (%)</div>
+        <div class="val" id="percentVal">0.00%</div>
+      </div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div class="meta">
+      <span id="statusText">স্ট্যাটাস: অপেক্ষমাণ</span>
+      <span id="updatedAt">আপডেট: ---</span>
+    </div>
+
+    <div class="found-box" id="foundBox"></div>
+
+    <div class="btn-row">
+      <button onclick="refreshStatus()">এখনই রিফ্রেশ করুন</button>
+      <a class="btn secondary" href="https://github.com/abulkalamazad2k7-svg/6-Digit-dwa/actions" target="_blank">GitHub Actions দেখুন</a>
+      <a class="btn secondary" href="https://github.com/abulkalamazad2k7-svg/6-Digit-dwa" target="_blank">রিপোজিটরি খুলুন</a>
+    </div>
+  </div>
+
+  <script>
+    const OWNER = "abulkalamazad2k7-svg";
+    const REPO = "6-Digit-dwa";
+    const BRANCH = "main";
+
+    function rawUrl(path) {
+      return `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${path}?t=${Date.now()}`;
+    }
+
+    async function refreshStatus() {
+      const statusEl = document.getElementById("statusText");
+      const updatedEl = document.getElementById("updatedAt");
+
+      try {
+        const res = await fetch(rawUrl("progress/last_pin.txt"), { cache: "no-store" });
+        if (res.ok) {
+          const txt = (await res.text()).trim();
+          const num = parseInt(txt, 10);
+          if (!Number.isNaN(num) && num >= 0 && num <= 999999) {
+            const lastStr = String(num).padStart(6, "0");
+            const nextStr = num < 999999 ? String(num + 1).padStart(6, "0") : "সম্পন্ন";
+            const checked = num + 1;
+            const pct = ((checked / 1000000) * 100).toFixed(2);
+
+            document.getElementById("lastPin").textContent = lastStr;
+            document.getElementById("nextPin").textContent = nextStr;
+            document.getElementById("checkedCount").textContent = checked.toLocaleString();
+            document.getElementById("percentVal").textContent = pct + "%";
+            document.getElementById("progressBar").style.width = pct + "%";
+            statusEl.textContent = "স্ট্যাটাস: লাইভ ডেটা পাওয়া গেছে";
+          } else {
+            statusEl.textContent = "স্ট্যাটাস: এখনো কোনো সিরিয়াল সেভ হয়নি";
+          }
+        } else {
+          statusEl.textContent = "স্ট্যাটাস: progress/last_pin.txt এখনো তৈরি হয়নি";
+        }
+      } catch (e) {
+        statusEl.textContent = "স্ট্যাটাস: নেটওয়ার্ক/ফাইল লোড ত্রুটি";
+      }
+
+      try {
+        const fRes = await fetch(rawUrl("found/mcbp_found_pass.txt"), { cache: "no-store" });
+        const foundBox = document.getElementById("foundBox");
+        if (fRes.ok) {
+          const fTxt = (await fRes.text()).trim();
+          if (fTxt) {
+            foundBox.style.display = "block";
+            foundBox.textContent = "সফল তথ্য পাওয়া গেছে:\n\n" + fTxt;
+          } else {
+            foundBox.style.display = "none";
+          }
+        }
+      } catch (_) {}
+
+      updatedEl.textContent = "আপডেট: " + new Date().toLocaleTimeString("bn-BD");
+    }
+
+    refreshStatus();
+    setInterval(refreshStatus, 5000);
+  </script>
+</body>
+</html>
