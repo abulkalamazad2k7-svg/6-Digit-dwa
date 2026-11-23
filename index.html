@@ -174,9 +174,28 @@
       const updatedEl = document.getElementById("updatedAt");
 
       try {
-        const res = await fetch(rawUrl("progress/last_pin.txt"), { cache: "no-store" });
+        const res = await fetch(rawUrl("progress/upper6_last.txt"), { cache: "no-store" });
         if (res.ok) {
-          const txt = (await res.text()).trim();
+          const rawTxt = (await res.text()).trim();
+          let lastNum = "";
+          let lastSerial = "";
+          let countVal = "";
+          for (const line of rawTxt.split(/\r?\n/)) {
+            const clean = line.trim();
+            if (clean.startsWith("last=")) {
+              const val = clean.slice(5);
+              if (val.includes("::")) {
+                const [numPart, serPart] = val.split("::");
+                lastNum = numPart || "";
+                lastSerial = serPart || "";
+              } else {
+                lastSerial = val;
+              }
+            } else if (clean.startsWith("count=")) {
+              countVal = clean.slice(6).trim();
+            }
+          }
+          const txt = lastSerial || rawTxt;
           const num = parseInt(txt, 10);
           if (!Number.isNaN(num) && num >= 0 && num <= 999999) {
             const lastStr = String(num).padStart(6, "0");
@@ -194,7 +213,7 @@
             statusEl.textContent = "স্ট্যাটাস: এখনো কোনো সিরিয়াল সেভ হয়নি";
           }
         } else {
-          statusEl.textContent = "স্ট্যাটাস: progress/last_pin.txt এখনো তৈরি হয়নি";
+          statusEl.textContent = "স্ট্যাটাস: progress/upper6_last.txt এখনো তৈরি হয়নি";
         }
       } catch (e) {
         statusEl.textContent = "স্ট্যাটাস: নেটওয়ার্ক/ফাইল লোড ত্রুটি";
